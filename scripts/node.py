@@ -5,13 +5,18 @@
 """
 
 import rospy
-from geometry_msgs.msg import ( PoseStamped, PoseWithCovarianceStamped,
+from geometry_msgs.msg import ( PoseStamped, PoseWithCovarianceStamped,Pose,Point,
                                PoseArray, Quaternion )
 from tf.msg import tfMessage
 from sensor_msgs.msg import LaserScan
 from nav_msgs.msg import OccupancyGrid
+from visualization_msgs.msg import Marker
+from visualization_msgs.msg import MarkerArray
 from threading import Lock
 import sys
+
+import numpy as np
+
 from copy import deepcopy
 
 class PizzaGenerationNode(object):
@@ -26,6 +31,10 @@ class PizzaGenerationNode(object):
 		self._cloud_publisher = rospy.Publisher("/particlecloud", PoseArray)
 		self._tf_publisher = rospy.Publisher("/tf", tfMessage)  # transform
 
+		self.res_w = 0.0
+		self.res_h = 0.0
+		self.resolution = 0.0
+
 		rospy.loginfo("Waiting for a map...")
 		try:
 		    ocuccupancy_map = rospy.wait_for_message("/map", OccupancyGrid, 20)
@@ -37,6 +46,7 @@ class PizzaGenerationNode(object):
 		              (ocuccupancy_map.info.width, ocuccupancy_map.info.height,
 		               ocuccupancy_map.info.resolution))
 		self.set_map(ocuccupancy_map)  # 🚩
+		self.generate_pizza(5)
 		
 
 
@@ -47,7 +57,10 @@ class PizzaGenerationNode(object):
 			pos=self.generate_particle_normal()	
 			marker=self.marker_generation(pos)
 			self.markerArray.markers.append(marker)
-		self._marker_publisher.publish(markerArray)
+		self.publish_pizza()
+
+	def publish_pizza(self):
+		self._marker_publisher.publish(self.markerArray)
     
 
 	def marker_generation(self, pose):
@@ -82,12 +95,14 @@ class PizzaGenerationNode(object):
 
 	def generate_particle_normal(self):
 		while 1:
-		    x, y = np.random.normal((pos.position.x, pos.position.y), self.res_h* self.resolution / self.RATIO_PARTICLES_INIT, 2)
-		    if x < 0 or y < 0 or x >= self.res_w * self.resolution or y >= self.res_h* self.resolution:
-		        continue
+			x= np.random.uniform(0,self.res_w* self.resolution)
+			y= np.random.uniform(0,self.res_h* self.resolution)
+			if x < 0 or y < 0 or x >= self.res_w * self.resolution or y >= self.res_h* self.resolution:
+				continue
+
 		    if self.check_position_occupancy(x, y):
 		        return Pose(
-		            Point(x, y, 0),
+		            Point(x, y, 0.5),
 		        )
 
 	def set_map(self, occupancy_map):
@@ -95,6 +110,16 @@ class PizzaGenerationNode(object):
 		self.occupancy_map = occupancy_map
 		self.set_map(occupancy_map)
 		# ----- Map has changed, so we should reinitialise the particle cloud
+		self.get_map()
+
+	def get_map(self):
+		if not (self.res_w and self.res_h):
+			map_occ = self.occupancy_map.info
+			self.resolution = map_occ.resolution
+			self.res_w = map_occ.width  # * self.resolution
+			self.res_h = map_occ.height  # * self.resolution
+		if not len(self.map_free_grid):
+			self.generate_free_xy()
 
 if __name__ == '__main__':
     # --- Main Program  ---
