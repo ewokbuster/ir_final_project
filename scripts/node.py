@@ -38,21 +38,33 @@ class PizzaGenerationNode(object):
 		               ocuccupancy_map.info.resolution))
 		self.set_map(ocuccupancy_map)  # 🚩
 		
-		self._laser_subscriber = rospy.Subscriber("/base_scan", LaserScan,
-		                                          self._laser_callback,
-		                                          queue_size=1)
-		self._initial_pose_subscriber = rospy.Subscriber("/initialpose",
-		                                                 PoseWithCovarianceStamped,
-		                                                 self._initial_pose_callback)
-		self._odometry_subscriber = rospy.Subscriber("/odom", Odometry,
-		                                             self._odometry_callback,
-		                                             queue_size=1)
+
 
 
     
-	def
+	def generate_pizza(self,number=6):
+		for x in range(6):
+			pos=self.generate_particle_normal()	
+			marker=self.marker_generation(pos)
+			markerArray.markers.append(marker)
+		self._marker_publisher.publish(markerArray)
     
 
+	def marker_generation(self, pose):
+		marker = Marker()
+		marker.header.frame_id = "/neck"
+		marker.type = marker.CYLINDER
+		marker.action = marker.ADD
+		marker.scale.x = 0.2
+		marker.scale.y = 0.2
+		marker.scale.z = 0.2
+		marker.color.a = 1.0
+		marker.color.r = 1.0
+		marker.color.g = 1.0
+		marker.color.b = 0.0
+		marker.pose=pose
+		marker.pose.orientation.w = 1.0
+		return marker
                 
 	def check_position_occupancy(self, x, y):
 		"""
