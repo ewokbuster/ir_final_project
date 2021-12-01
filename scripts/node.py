@@ -85,8 +85,7 @@ class PizzaGenerationNode(object):
 		# if dis is smaller than threshold, then do resample or give this point a random movement
 		return occupancy of position
 		"""
-		if not self.random_initialised:
-		    return 1
+
 		x_px = round(x / self.occupancy_map.info.resolution)
 		y_px = round(y / self.occupancy_map.info.resolution)
 		index = int(y_px * self.occupancy_map.info.width + x_px)
@@ -99,11 +98,7 @@ class PizzaGenerationNode(object):
 			y= np.random.uniform(0,self.res_h* self.resolution)
 			if x < 0 or y < 0 or x >= self.res_w * self.resolution or y >= self.res_h* self.resolution:
 				continue
-
-		    if self.check_position_occupancy(x, y):
-		        return Pose(
-		            Point(x, y, 0.5),
-		        )
+			if self.check_position_occupancy(x, y): return Pose(Point(x, y, 0.5))
 
 	def set_map(self, occupancy_map):
 		""" Set the map for localisation """
