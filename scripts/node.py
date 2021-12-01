@@ -46,7 +46,7 @@ class PizzaGenerationNode(object):
 		for x in range(6):
 			pos=self.generate_particle_normal()	
 			marker=self.marker_generation(pos)
-			markerArray.markers.append(marker)
+			self.markerArray.markers.append(marker)
 		self._marker_publisher.publish(markerArray)
     
 
