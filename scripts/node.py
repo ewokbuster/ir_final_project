@@ -16,20 +16,18 @@ from threading import Lock
 import sys
 
 import numpy as np
+import time
 
 from copy import deepcopy
 
 class PizzaGenerationNode(object):
+
 	def __init__(self):		
 		self.occupancy_map = OccupancyGrid()        
 		self.markerArray = MarkerArray()
-		self._marker_publisher = rospy.Publisher('/visualization_marker_array', MarkerArray)
+		self._marker_publisher = rospy.Publisher('/visualization_marker_array', MarkerArray,queue_size=100)
 
-		self._pose_publisher = rospy.Publisher("/estimatedpose", PoseStamped)
-		self._amcl_pose_publisher = rospy.Publisher("/amcl_pose",
-		                                            PoseWithCovarianceStamped)
-		self._cloud_publisher = rospy.Publisher("/particlecloud", PoseArray)
-		self._tf_publisher = rospy.Publisher("/tf", tfMessage)  # transform
+
 
 		self.res_w = 0.0
 		self.res_h = 0.0
@@ -47,6 +45,7 @@ class PizzaGenerationNode(object):
 		               ocuccupancy_map.info.resolution))
 		self.set_map(ocuccupancy_map)  # 🚩
 		self.generate_pizza(5)
+
 		
 
 
@@ -55,22 +54,29 @@ class PizzaGenerationNode(object):
 	def generate_pizza(self,number=6):
 		for x in range(6):
 			pos=self.generate_particle_normal()	
-			marker=self.marker_generation(pos)
+			marker=self.marker_generation(pos,x)
 			self.markerArray.markers.append(marker)
+		rospy.loginfo("before publish_pizza")
 		self.publish_pizza()
 
 	def publish_pizza(self):
+		rospy.loginfo("publish_pizza")
+		
 		self._marker_publisher.publish(self.markerArray)
     
 
-	def marker_generation(self, pose):
+	def marker_generation(self, pose,x):
+		rospy.loginfo("marker_generation")
 		marker = Marker()
-		marker.header.frame_id = "/neck"
+		
+		marker.ns="my_namespace"
+		marker.header.frame_id = "base_link"
 		marker.type = marker.CYLINDER
 		marker.action = marker.ADD
-		marker.scale.x = 0.2
-		marker.scale.y = 0.2
-		marker.scale.z = 0.2
+		marker.id=25+x
+		marker.scale.x = 100
+		marker.scale.y = 100
+		marker.scale.z = 100
 		marker.color.a = 1.0
 		marker.color.r = 1.0
 		marker.color.g = 1.0
@@ -93,17 +99,23 @@ class PizzaGenerationNode(object):
 
 
 	def generate_particle_normal(self):
+		rospy.loginfo("generate_particle_normal")
 		while 1:
 			x= np.random.uniform(0,self.res_w* self.resolution)
 			y= np.random.uniform(0,self.res_h* self.resolution)
+			rospy.loginfo("generate_particle_normal________")
 			if x < 0 or y < 0 or x >= self.res_w * self.resolution or y >= self.res_h* self.resolution:
+				rospy.loginfo("generate_particle_normal________continue")
 				continue
-			if self.check_position_occupancy(x, y): return Pose(Point(x, y, 0.5))
+			if self.check_position_occupancy(x, y): 
+				rospy.loginfo("generate_particle_normal_"+str(x)+"___"+str(y))
+				return  Pose(Point(round(x), round(y), 1),
+			            Quaternion())
 
 	def set_map(self, occupancy_map):
 		""" Set the map for localisation """
 		self.occupancy_map = occupancy_map
-		self.set_map(occupancy_map)
+
 		# ----- Map has changed, so we should reinitialise the particle cloud
 		self.get_map()
 
@@ -113,8 +125,8 @@ class PizzaGenerationNode(object):
 			self.resolution = map_occ.resolution
 			self.res_w = map_occ.width  # * self.resolution
 			self.res_h = map_occ.height  # * self.resolution
-		if not len(self.map_free_grid):
-			self.generate_free_xy()
+		#if not len(self.map_free_grid):
+		#	self.generate_free_xy()
 
 if __name__ == '__main__':
     # --- Main Program  ---
