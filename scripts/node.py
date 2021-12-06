@@ -17,6 +17,8 @@ import sys
 
 import numpy as np
 import time
+import uuid
+
 
 from copy import deepcopy
 
@@ -26,7 +28,7 @@ class PizzaGenerationNode(object):
 		self.occupancy_map = OccupancyGrid()        
 		self.markerArray = MarkerArray()
 		self._marker_publisher = rospy.Publisher('/visualization_marker_array', MarkerArray,queue_size=100)
-
+		
 
 
 		self.res_w = 0.0
@@ -44,28 +46,62 @@ class PizzaGenerationNode(object):
 		              (ocuccupancy_map.info.width, ocuccupancy_map.info.height,
 		               ocuccupancy_map.info.resolution))
 		self.set_map(ocuccupancy_map)  # 🚩
-		self.generate_pizza(5)
+		self.generate_pizzas(1)
+
+	
+
+
+	def delete_pizza(self,id):
+		for i in range(len(self.pizzaArray)):
+			if self.pizzaArray[i]['id'] == id:
+				self.delete_from_markerArray(self.pizzaArray[i][id])
+
+				del self.pizzaArray[i]
+				break
+
+
+
+
 
 		
 
 
 
-    
-	def generate_pizza(self,number=6):
-		for x in range(6):
-			pos=self.generate_particle_normal()	
-			marker=self.marker_generation(pos,x)
-			self.markerArray.markers.append(marker)
-		rospy.loginfo("before publish_pizza")
-		self.publish_pizza()
+	def delete_from_markerArray(self,id):
+		marker_array_msg = MarkerArray()
+		marker = Marker()
+		marker.id = id
+		marker.ns = "my_namespace"
+		marker.action = Marker.DELETE
+		marker_array_msg.markers.append(marker)
+		self.publish_pizza(marker_array_msg)
+		rospy.sleep(0.2)
 
-	def publish_pizza(self):
+
+	def generate_pizzas(self,number=1):
+		marker_array_msg = MarkerArray()
+		for x in range(number):
+			pos=self.generate_particle_normal()
+			id= str(uuid.uuid4())
+			pizza = {
+				"pos": pos,
+				"id": id
+			}
+			self.pizzaArray.append(pizza)
+			marker=self.marker_generation(pos,id)
+			#self.markerArray.markers.append(marker)
+			marker_array_msg.markers.append(marker)
+
+		self.publish_pizza(marker_array_msg)
+		rospy.sleep(0.2)
+
+	def publish_pizza(self,markerArray):
 		rospy.loginfo("publish_pizza")
 		
-		self._marker_publisher.publish(self.markerArray)
+		self._marker_publisher.publish(markerArray)
     
 
-	def marker_generation(self, pose,x):
+	def marker_generation(self, pose,guid):
 		rospy.loginfo("marker_generation")
 		marker = Marker()
 		
@@ -73,7 +109,7 @@ class PizzaGenerationNode(object):
 		marker.header.frame_id = "base_link"
 		marker.type = marker.CYLINDER
 		marker.action = marker.ADD
-		marker.id=25+x
+		marker.id=guid
 		marker.scale.x = 100
 		marker.scale.y = 100
 		marker.scale.z = 100
@@ -95,6 +131,7 @@ class PizzaGenerationNode(object):
 		x_px = round(x / self.occupancy_map.info.resolution)
 		y_px = round(y / self.occupancy_map.info.resolution)
 		index = int(y_px * self.occupancy_map.info.width + x_px)
+		rospy.loginfo(self.occupancy_map.data)
 		return (self.occupancy_map.data[index] == 0)
 
 
@@ -109,7 +146,7 @@ class PizzaGenerationNode(object):
 				continue
 			if self.check_position_occupancy(x, y): 
 				rospy.loginfo("generate_particle_normal_"+str(x)+"___"+str(y))
-				return  Pose(Point(round(x), round(y), 1),
+				return  Pose(Point(round(x), round(y), 0),
 			            Quaternion())
 
 	def set_map(self, occupancy_map):
